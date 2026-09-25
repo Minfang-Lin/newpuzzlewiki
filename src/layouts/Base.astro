@@ -1,0 +1,46 @@
+---
+import '../styles/global.css';
+import { url } from '../lib/url';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+const { title, description = '收集喜爱的纸笔谜题：题型百科与题库' } = Astro.props;
+const siteName = '谜题百科';
+const path = Astro.url.pathname;
+const nav = [
+  { href: url('genres/'), label: '题型' },
+  { href: url('puzzles/'), label: '题库' },
+];
+---
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href={url('favicon.svg')} />
+    <title>{title ? `${title} · ${siteName}` : siteName}</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <a class="logo" href={url()}>{siteName}</a>
+        <nav>
+          {nav.map((n) => (
+            <a href={n.href} aria-current={path.startsWith(n.href) ? 'page' : undefined}>{n.label}</a>
+          ))}
+        </nav>
+      </div>
+    </header>
+    <main class="container">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="container muted">
+        谜题版权归原作者所有，本站仅作收藏与介绍，请通过原链接支持作者。
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import PuzzleCard from '../../components/PuzzleCard.astro';
+import { getGenres, getPuzzles, type Genre } from '../../lib/puzzles';
+import { url } from '../../lib/url';
+
+export async function getStaticPaths() {
+  const genres = await getGenres();
+  return genres.map((genre) => ({ params: { id: genre.id }, props: { genre } }));
+}
+
+const { genre } = Astro.props as { genre: Genre };
+const { Content } = await render(genre);
+const puzzles = (await getPuzzles()).filter((p) => p.data.genre.id === genre.id);
+const preview = puzzles.slice(0, 12);
+const d = genre.data;
+---
+<Base title={d.name.zh} description={d.summary}>
+  <p class="muted"><a href={url('genres/')}>题型</a> / {d.category ?? '其他'}</p>
+  <h1>{d.name.zh}</h1>
+  <dl class="info">
+    {d.name.ja && <><dt>日文</dt><dd>{d.name.ja}</dd></>}
+    {d.name.en && <><dt>英文</dt><dd>{d.name.en}</dd></>}
+    {d.aliases.length > 0 && <><dt>别名</dt><dd>{d.aliases.join('、')}</dd></>}
+    {d.inventor && <><dt>发明/推广</dt><dd>{d.inventor}</dd></>}
+  </dl>
+
+  <article class="prose">
+    <Content />
+  </article>
+
+  <h2>谜题（{puzzles.length}）</h2>
+  {puzzles.length === 0 && <p class="muted">还没有收录这个题型的谜题。</p>}
+  <div class="grid">
+    {preview.map((p) => <PuzzleCard puzzle={p} />)}
+  </div>
+  {puzzles.length > preview.length && (
+    <p><a class="button" href={url(`puzzles/?genre=${genre.id}`)}>查看全部 {puzzles.length} 道 →</a></p>
+  )}
+</Base>
+
+<style>
+  .info { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0 0 24px; }
+  .info dt { color: var(--muted); }
+  .info dd { margin: 0; }
+  .prose { max-width: 760px; }
+</style>

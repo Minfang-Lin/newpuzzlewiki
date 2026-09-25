@@ -1,0 +1,11 @@
+title: 数独 示例 2
+genre: sudoku
+question: ./sample-002-q.png
+answer: ./sample-002-a.png
+author: 示例作者B
+source: 示例出处
+difficulty: 3
+size: 9x9
+tags: []
+date: 2026-09-11
+notes: 这是占位示例，请替换成真实的谜题。

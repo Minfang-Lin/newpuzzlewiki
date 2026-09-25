@@ -1,0 +1,301 @@
+---
+import Base from '../../layouts/Base.astro';
+import { url } from '../../lib/url';
+---
+<Base title="题库">
+  <h1>题库</h1>
+
+  <div class="browser" data-index={url('puzzles/index.json')}>
+    <aside class="filters" id="filters">
+      <label class="field">
+        <span>关键词</span>
+        <input type="search" name="q" placeholder="标题、作者、出处、标签…" />
+      </label>
+
+      <fieldset>
+        <legend>题型</legend>
+        <div class="options" data-facet="genre"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>难度</legend>
+        <div class="options inline" data-facet="d"></div>
+      </fieldset>
+
+      <label class="field">
+        <span>作者</span>
+        <select name="author"><option value="">全部</option></select>
+      </label>
+
+      <label class="field">
+        <span>出处</span>
+        <select name="source"><option value="">全部</option></select>
+      </label>
+
+      <fieldset>
+        <legend>标签（需同时满足）</legend>
+        <div class="options inline" data-facet="tag"></div>
+      </fieldset>
+
+      <button type="button" class="button" id="reset">清除筛选</button>
+    </aside>
+
+    <section class="results">
+      <div class="toolbar">
+        <span id="count" class="muted">加载中…</span>
+        <label>
+          排序
+          <select name="sort">
+            <option value="">默认（按题型）</option>
+            <option value="date">最新收录</option>
+            <option value="easy">难度从低到高</option>
+            <option value="hard">难度从高到低</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid" id="grid"></div>
+      <nav class="pagination" id="pagination"></nav>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .browser { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; align-items: start; }
+  @media (max-width: 800px) { .browser { grid-template-columns: 1fr; } }
+  .filters { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
+  @media (max-width: 800px) { .filters { position: static; max-height: none; } }
+  .field { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; }
+  input, select { font: inherit; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); }
+  fieldset { border: none; padding: 0; margin: 0; }
+  legend { font-size: .9rem; margin-bottom: 4px; }
+  .options { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow: auto; font-size: .875rem; }
+  .options.inline { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .options :global(label) { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .options :global(.count) { color: var(--muted); font-size: .8rem; }
+  .options :global(.chip) { border: 1px solid var(--border); border-radius: 999px; padding: 1px 10px; }
+  .options :global(.chip:has(input:checked)) { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .options :global(.chip input) { display: none; }
+  .options :global(.empty) { opacity: .45; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; flex-wrap: wrap; }
+  .pagination { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 24px; }
+  .pagination :global(button[aria-current]) { background: var(--accent); border-color: var(--accent); color: #fff; }
+</style>
+
+<script>
+  import type { PuzzleIndexItem as Item } from '../../lib/puzzles';
+
+  const PAGE_SIZE = 60;
+  const root = document.querySelector<HTMLElement>('.browser')!;
+  const filtersEl = document.getElementById('filters')!;
+  const grid = document.getElementById('grid')!;
+  const countEl = document.getElementById('count')!;
+  const pager = document.getElementById('pagination')!;
+  const q = filtersEl.querySelector<HTMLInputElement>('input[name=q]')!;
+  const authorSel = filtersEl.querySelector<HTMLSelectElement>('select[name=author]')!;
+  const sourceSel = filtersEl.querySelector<HTMLSelectElement>('select[name=source]')!;
+  const sortSel = document.querySelector<HTMLSelectElement>('select[name=sort]')!;
+
+  interface State {
+    q: string;
+    genre: Set<string>;
+    d: Set<string>;
+    tag: Set<string>;
+    author: string;
+    source: string;
+    sort: string;
+    page: number;
+  }
+
+  const items: Item[] = await fetch(root.dataset.index!).then((r) => r.json());
+  const state = readUrl();
+
+  // ---------- 构建筛选控件 ----------
+  const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh'));
+  const genreNames = new Map(items.map((i) => [i.genre, i.genreName]));
+  const genres = [...genreNames.keys()].sort((a, b) => genreNames.get(a)!.localeCompare(genreNames.get(b)!, 'zh'));
+  const tags = uniq(items.flatMap((i) => i.tags));
+  const levels = ['1', '2', '3', '4', '5'];
+
+  function buildOptions(facet: 'genre' | 'd' | 'tag', values: string[], label: (v: string) => string, chip: boolean) {
+    const box = filtersEl.querySelector<HTMLElement>(`[data-facet=${facet}]`)!;
+    for (const v of values) {
+      const lab = document.createElement('label');
+      if (chip) lab.className = 'chip';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.value = v;
+      input.checked = state[facet].has(v);
+      input.addEventListener('change', () => {
+        input.checked ? state[facet].add(v) : state[facet].delete(v);
+        update(true);
+      });
+      const text = document.createElement('span');
+      text.textContent = label(v);
+      const count = document.createElement('span');
+      count.className = 'count';
+      count.dataset.value = v;
+      lab.append(input, text, count);
+      box.append(lab);
+    }
+  }
+  buildOptions('genre', genres, (g) => genreNames.get(g)!, false);
+  buildOptions('d', levels, (n) => '★'.repeat(Number(n)), true);
+  buildOptions('tag', tags, (t) => t, true);
+
+  function fillSelect(sel: HTMLSelectElement, values: string[], current: string) {
+    for (const v of values) sel.add(new Option(v, v));
+    sel.value = current;
+  }
+  fillSelect(authorSel, uniq(items.map((i) => i.author)), state.author);
+  fillSelect(sourceSel, uniq(items.map((i) => i.source)), state.source);
+  q.value = state.q;
+  sortSel.value = state.sort;
+
+  let timer: number | undefined;
+  q.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = window.setTimeout(() => ((state.q = q.value.trim()), update(true)), 200);
+  });
+  authorSel.addEventListener('change', () => ((state.author = authorSel.value), update(true)));
+  sourceSel.addEventListener('change', () => ((state.source = sourceSel.value), update(true)));
+  sortSel.addEventListener('change', () => ((state.sort = sortSel.value), update(true)));
+  document.getElementById('reset')!.addEventListener('click', () => {
+    Object.assign(state, emptyState());
+    q.value = authorSel.value = sourceSel.value = sortSel.value = '';
+    filtersEl.querySelectorAll<HTMLInputElement>('input[type=checkbox]').forEach((c) => (c.checked = false));
+    update(true);
+  });
+
+  // ---------- 筛选逻辑 ----------
+  type Facet = 'q' | 'genre' | 'd' | 'tag' | 'author' | 'source';
+  function matches(i: Item, skip?: Facet): boolean {
+    if (skip !== 'genre' && state.genre.size && !state.genre.has(i.genre)) return false;
+    if (skip !== 'd' && state.d.size && !state.d.has(String(i.difficulty))) return false;
+    if (skip !== 'author' && state.author && i.author !== state.author) return false;
+    if (skip !== 'source' && state.source && i.source !== state.source) return false;
+    if (skip !== 'tag') for (const t of state.tag) if (!i.tags.includes(t)) return false;
+    if (skip !== 'q' && state.q) {
+      const hay = [i.title, i.genreName, i.author, i.source, ...i.tags].join(' ').toLowerCase();
+      if (!state.q.toLowerCase().split(/\s+/).every((w) => hay.includes(w))) return false;
+    }
+    return true;
+  }
+
+  /** 更新每个选项旁的数量（在其它筛选条件下的数量） */
+  function updateCounts() {
+    const facets: [Exclude<Facet, 'q' | 'author' | 'source'>, (i: Item) => string[]][] = [
+      ['genre', (i) => [i.genre]],
+      ['d', (i) => [String(i.difficulty)]],
+      ['tag', (i) => i.tags],
+    ];
+    for (const [facet, key] of facets) {
+      const counts = new Map<string, number>();
+      for (const i of items) if (matches(i, facet)) for (const k of key(i)) counts.set(k, (counts.get(k) ?? 0) + 1);
+      filtersEl.querySelectorAll<HTMLElement>(`[data-facet=${facet}] .count`).forEach((el) => {
+        const n = counts.get(el.dataset.value!) ?? 0;
+        el.textContent = String(n);
+        el.parentElement!.classList.toggle('empty', n === 0);
+      });
+    }
+  }
+
+  function sorted(list: Item[]): Item[] {
+    const s = [...list];
+    if (state.sort === 'date') s.sort((a, b) => b.date.localeCompare(a.date));
+    if (state.sort === 'easy') s.sort((a, b) => (a.difficulty || 9) - (b.difficulty || 9));
+    if (state.sort === 'hard') s.sort((a, b) => b.difficulty - a.difficulty);
+    return s;
+  }
+
+  // ---------- 渲染 ----------
+  function card(i: Item): HTMLElement {
+    const a = document.createElement('a');
+    a.className = 'card';
+    a.href = i.href;
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    const img = document.createElement('img');
+    img.src = i.thumb;
+    img.alt = i.title;
+    img.loading = 'lazy';
+    thumb.append(img);
+    const body = document.createElement('div');
+    body.className = 'body';
+    const title = document.createElement('span');
+    title.className = 'title';
+    title.textContent = i.title;
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    const stars = i.difficulty ? '★'.repeat(i.difficulty) + '☆'.repeat(5 - i.difficulty) + ' · ' : '';
+    meta.textContent = stars + [i.genreName, i.author].filter(Boolean).join(' · ');
+    body.append(title, meta);
+    a.append(thumb, body);
+    return a;
+  }
+
+  function renderPager(pages: number) {
+    pager.replaceChildren();
+    if (pages <= 1) return;
+    const show = new Set([1, pages, state.page - 2, state.page - 1, state.page, state.page + 1, state.page + 2]);
+    let last = 0;
+    for (let p = 1; p <= pages; p++) {
+      if (!show.has(p)) continue;
+      if (p - last > 1) pager.append(Object.assign(document.createElement('span'), { textContent: '…' }));
+      const b = document.createElement('button');
+      b.className = 'button';
+      b.textContent = String(p);
+      if (p === state.page) b.setAttribute('aria-current', 'page');
+      b.addEventListener('click', () => {
+        state.page = p;
+        update(false);
+        root.scrollIntoView({ behavior: 'smooth' });
+      });
+      pager.append(b);
+      last = p;
+    }
+  }
+
+  function update(resetPage: boolean) {
+    if (resetPage) state.page = 1;
+    const result = sorted(items.filter((i) => matches(i)));
+    const pages = Math.max(1, Math.ceil(result.length / PAGE_SIZE));
+    state.page = Math.min(state.page, pages);
+    grid.replaceChildren(...result.slice((state.page - 1) * PAGE_SIZE, state.page * PAGE_SIZE).map(card));
+    countEl.textContent = `共 ${result.length} 道谜题` + (result.length !== items.length ? `（全部 ${items.length} 道）` : '');
+    renderPager(pages);
+    updateCounts();
+    writeUrl();
+  }
+
+  // ---------- URL 同步（筛选结果可以直接分享链接） ----------
+  function emptyState(): State {
+    return { q: '', genre: new Set(), d: new Set(), tag: new Set(), author: '', source: '', sort: '', page: 1 };
+  }
+  function readUrl(): State {
+    const p = new URLSearchParams(location.search);
+    const list = (k: string) => new Set(p.getAll(k).flatMap((v) => v.split(',')).filter(Boolean));
+    return {
+      q: p.get('q') ?? '',
+      genre: list('genre'),
+      d: list('d'),
+      tag: list('tag'),
+      author: p.get('author') ?? '',
+      source: p.get('source') ?? '',
+      sort: p.get('sort') ?? '',
+      page: Number(p.get('page')) || 1,
+    };
+  }
+  function writeUrl() {
+    const p = new URLSearchParams();
+    if (state.q) p.set('q', state.q);
+    for (const k of ['genre', 'd', 'tag'] as const) if (state[k].size) p.set(k, [...state[k]].join(','));
+    if (state.author) p.set('author', state.author);
+    if (state.source) p.set('source', state.source);
+    if (state.sort) p.set('sort', state.sort);
+    if (state.page > 1) p.set('page', String(state.page));
+    const qs = p.toString();
+    history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+  }
+
+  update(false);
+</script>

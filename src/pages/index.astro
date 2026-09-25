@@ -1,0 +1,31 @@
+---
+import Base from '../layouts/Base.astro';
+import PuzzleCard from '../components/PuzzleCard.astro';
+import { getGenres, getPuzzles } from '../lib/puzzles';
+import { url } from '../lib/url';
+
+const [genres, puzzles] = await Promise.all([getGenres(), getPuzzles()]);
+const latest = [...puzzles]
+  .sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0))
+  .slice(0, 12);
+---
+<Base>
+  <section class="hero">
+    <h1>谜题百科</h1>
+    <p class="muted">收集我喜爱的纸笔谜题：目前共 <strong>{genres.length}</strong> 种题型、<strong>{puzzles.length}</strong> 道谜题。</p>
+    <p>
+      <a class="button primary" href={url('puzzles/')}>浏览题库</a>
+      <a class="button" href={url('genres/')}>题型一览</a>
+    </p>
+  </section>
+
+  <h2>最近收录</h2>
+  <div class="grid">
+    {latest.map((p) => <PuzzleCard puzzle={p} />)}
+  </div>
+</Base>
+
+<style>
+  .hero { padding: 24px 0 8px; }
+  .hero h1 { font-size: 2.25rem; margin: 0 0 8px; }
+</style>

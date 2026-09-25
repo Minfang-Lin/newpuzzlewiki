@@ -1,0 +1,23 @@
+---
+import { Image } from 'astro:assets';
+import { puzzleUrl, type Puzzle } from '../lib/puzzles';
+import { stars } from '../lib/url';
+
+interface Props {
+  puzzle: Puzzle;
+}
+const { puzzle } = Astro.props;
+const d = puzzle.data;
+---
+<a class="card" href={puzzleUrl(puzzle)}>
+  <div class="thumb">
+    <Image src={d.question} alt={d.title} width={360} format="webp" loading="lazy" />
+  </div>
+  <div class="body">
+    <span class="title">{d.title}</span>
+    <span class="meta">
+      {d.difficulty && <span class="stars">{stars(d.difficulty)}</span>}
+      {d.author && <> · {d.author}</>}
+    </span>
+  </div>
+</a>

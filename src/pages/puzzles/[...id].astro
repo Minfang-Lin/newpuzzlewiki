@@ -1,0 +1,83 @@
+---
+import { Image } from 'astro:assets';
+import { getEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { getPuzzles, puzzleUrl, type Puzzle } from '../../lib/puzzles';
+import { stars, url } from '../../lib/url';
+
+export async function getStaticPaths() {
+  const puzzles = await getPuzzles();
+  return puzzles.map((puzzle, i) => {
+    // 同一题型内的上一题 / 下一题
+    const prev = puzzles[i - 1]?.data.genre.id === puzzle.data.genre.id ? puzzles[i - 1] : undefined;
+    const next = puzzles[i + 1]?.data.genre.id === puzzle.data.genre.id ? puzzles[i + 1] : undefined;
+    return { params: { id: puzzle.id }, props: { puzzle, prev, next } };
+  });
+}
+
+const { puzzle, prev, next } = Astro.props as { puzzle: Puzzle; prev?: Puzzle; next?: Puzzle };
+const d = puzzle.data;
+const genre = await getEntry(d.genre);
+const genreName = genre?.data.name.zh ?? d.genre.id;
+const filterLink = (key: string, value: string) => url(`puzzles/?${key}=${encodeURIComponent(value)}`);
+---
+<Base title={`${d.title}（${genreName}）`}>
+  <p class="muted">
+    <a href={url('puzzles/')}>题库</a> / <a href={url(`genres/${d.genre.id}/`)}>{genreName}</a>
+  </p>
+  <h1>{d.title}</h1>
+
+  <div class="layout">
+    <div class="images">
+      <figure>
+        <Image src={d.question} alt={`${d.title} 题目`} widths={[480, 800, 1200]} sizes="(max-width: 800px) 100vw, 720px" />
+      </figure>
+
+      {d.answer && (
+        <details class="answer">
+          <summary class="button">显示答案</summary>
+          <figure>
+            <Image src={d.answer} alt={`${d.title} 答案`} widths={[480, 800, 1200]} sizes="(max-width: 800px) 100vw, 720px" loading="lazy" />
+          </figure>
+        </details>
+      )}
+    </div>
+
+    <aside class="meta-box">
+      <dl>
+        <dt>题型</dt><dd><a href={url(`genres/${d.genre.id}/`)}>{genreName}</a></dd>
+        {d.difficulty && <><dt>难度</dt><dd><span class="stars">{stars(d.difficulty)}</span></dd></>}
+        {d.size && <><dt>尺寸</dt><dd>{d.size}</dd></>}
+        {d.author && <><dt>作者</dt><dd><a href={filterLink('author', d.author)}>{d.author}</a></dd></>}
+        {d.source && <><dt>出处</dt><dd><a href={filterLink('source', d.source)}>{d.source}</a></dd></>}
+        {d.date && <><dt>日期</dt><dd>{d.date.toISOString().slice(0, 10)}</dd></>}
+        {d.url && <><dt>原题</dt><dd><a href={d.url} target="_blank" rel="noopener">原链接 ↗</a></dd></>}
+      </dl>
+      {d.tags.length > 0 && (
+        <p>{d.tags.map((t) => <a class="tag" href={filterLink('tag', t)}>{t}</a>)}</p>
+      )}
+      {d.notes && <p class="notes">{d.notes}</p>}
+    </aside>
+  </div>
+
+  <nav class="pager">
+    {prev ? <a class="button" href={puzzleUrl(prev)}>← {prev.data.title}</a> : <span />}
+    {next ? <a class="button" href={puzzleUrl(next)}>{next.data.title} →</a> : <span />}
+  </nav>
+</Base>
+
+<style>
+  .layout { display: grid; grid-template-columns: minmax(0, 720px) minmax(220px, 1fr); gap: 32px; align-items: start; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+  figure { margin: 0 0 16px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+  figure img { display: block; margin: 0 auto; }
+  .answer summary { list-style: none; margin-bottom: 16px; }
+  .answer summary::-webkit-details-marker { display: none; }
+  .answer[open] summary { display: none; }
+  .meta-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .meta-box dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0 0 12px; }
+  .meta-box dt { color: var(--muted); }
+  .meta-box dd { margin: 0; }
+  .notes { white-space: pre-line; border-top: 1px solid var(--border); padding-top: 12px; margin: 0; }
+  .pager { display: flex; justify-content: space-between; gap: 16px; margin-top: 32px; }
+</style>

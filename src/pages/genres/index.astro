@@ -1,0 +1,43 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getGenres, getPuzzles } from '../../lib/puzzles';
+import { url } from '../../lib/url';
+
+const [genres, puzzles] = await Promise.all([getGenres(), getPuzzles()]);
+const count = new Map<string, number>();
+for (const p of puzzles) count.set(p.data.genre.id, (count.get(p.data.genre.id) ?? 0) + 1);
+
+// 按分类分组
+const groups = new Map<string, typeof genres>();
+for (const g of genres) {
+  const key = g.data.category ?? '其他';
+  groups.set(key, [...(groups.get(key) ?? []), g]);
+}
+---
+<Base title="题型">
+  <h1>题型一览</h1>
+  {[...groups].map(([category, list]) => (
+    <section>
+      <h2>{category}</h2>
+      <div class="genre-list">
+        {list.map((g) => (
+          <a class="card genre" href={url(`genres/${g.id}/`)}>
+            <div class="body">
+              <span class="title">{g.data.name.zh}</span>
+              <span class="meta">{[g.data.name.ja, g.data.name.en].filter(Boolean).join(' / ')}</span>
+              <p>{g.data.summary}</p>
+              <span class="meta">{count.get(g.id) ?? 0} 道谜题</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  ))}
+</Base>
+
+<style>
+  .genre-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .genre .body { padding: 16px; }
+  .genre .title { font-size: 1.1rem; }
+  .genre p { margin: 8px 0; font-size: .9rem; }
+</style>
