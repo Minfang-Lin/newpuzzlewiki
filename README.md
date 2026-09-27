@@ -88,6 +88,17 @@ npm run import -- ~/Downloads/inaba-nurikabe --genre nurikabe --prefix inaba \
 仓库 Settings → Pages → Source 选择 **GitHub Actions**，之后推送到 `main` 就会自动部署到
 `https://minfang-lin.github.io/newpuzzlewiki/`。
 
-## 示例内容
+## 从 PDF 题集导入
 
-`src/content/puzzles/*/sample-*` 是占位示例图，添加真实谜题后删除即可。
+适用于「一页一个题型：规则 + 例题 + 若干谜题」的题集（如稲葉直貴的本格パズル集）。
+
+```bash
+pip install pymupdf
+# 1. 按页裁出例题、解答和各道谜题（PDF 不要放进仓库）
+python3 scripts/extract-pdf.py 题集.pdf /tmp/extract --pages 1-20
+# 2. 为每个题型写好 src/content/genres/<id>.md（规则翻译）
+# 3. 在 data/imports/<题集>.json 里登记「页码 → 题型 id」，然后导入
+python3 scripts/import-extracted.py /tmp/extract data/imports/inaba-honkaku.json
+```
+
+题型页可以在 frontmatter 中加 `example` / `exampleAnswer`（例题图片）和 `links`（外部链接）。

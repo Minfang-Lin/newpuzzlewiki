@@ -5,7 +5,7 @@ import { z } from 'astro/zod';
 // 题型百科：src/content/genres/<id>.md
 const genres = defineCollection({
   loader: glob({ pattern: '**/*.md', base: './src/content/genres' }),
-  schema: z.object({
+  schema: ({ image }) => z.object({
     name: z.object({
       zh: z.string(),
       ja: z.string().optional(),
@@ -15,6 +15,9 @@ const genres = defineCollection({
     inventor: z.string().optional(),
     category: z.string().optional(), // 例如：涂黑类、连线类、数字填入类
     summary: z.string(), // 一句话简介，显示在卡片上
+    example: image().optional(), // 例题
+    exampleAnswer: image().optional(), // 例题解答
+    links: z.array(z.object({ label: z.string(), url: z.url() })).default([]),
   }),
 });
 

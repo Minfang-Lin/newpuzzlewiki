@@ -33,6 +33,7 @@ const filterLink = (key: string, value: string) => url(`puzzles/?${key}=${encode
         <Image src={d.question} alt={`${d.title} 题目`} widths={[480, 800, 1200]} sizes="(max-width: 800px) 100vw, 720px" />
       </figure>
 
+      {!d.answer && <p class="muted">原题集未附答案。</p>}
       {d.answer && (
         <details class="answer">
           <summary class="button">显示答案</summary>
@@ -70,7 +71,7 @@ const filterLink = (key: string, value: string) => url(`puzzles/?${key}=${encode
   .layout { display: grid; grid-template-columns: minmax(0, 720px) minmax(220px, 1fr); gap: 32px; align-items: start; }
   @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
   figure { margin: 0 0 16px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
-  figure img { display: block; margin: 0 auto; }
+  figure img { display: block; margin: 0 auto; width: 100%; max-width: 520px; height: auto; }
   .answer summary { list-style: none; margin-bottom: 16px; }
   .answer summary::-webkit-details-marker { display: none; }
   .answer[open] summary { display: none; }

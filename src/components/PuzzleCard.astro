@@ -17,7 +17,8 @@ const d = puzzle.data;
     <span class="title">{d.title}</span>
     <span class="meta">
       {d.difficulty && <span class="stars">{stars(d.difficulty)}</span>}
-      {d.author && <> · {d.author}</>}
+      {d.difficulty && d.author && ' · '}
+      {d.author}
     </span>
   </div>
 </a>

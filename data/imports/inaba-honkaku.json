@@ -1,0 +1,17 @@
+{
+  "prefix": "inaba-honkaku",
+  "author": "稲葉直貴",
+  "source": "稲葉直貴本格パズル集",
+  "url": "http://inabapuzzle.com/honkaku/index_g.html",
+  "date": "2022-11-05",
+  "pages": {
+    "1": "abc-box",
+    "2": "not-abcd",
+    "3": "abolo-loop",
+    "4": "across-loop",
+    "5": "address-number",
+    "6": "arrow-domino",
+    "7": "alternation",
+    "8": "arrow-maze"
+  }
+}

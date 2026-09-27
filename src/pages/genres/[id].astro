@@ -1,4 +1,5 @@
 ---
+import { Image } from 'astro:assets';
 import { render } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import PuzzleCard from '../../components/PuzzleCard.astro';
@@ -30,6 +31,33 @@ const d = genre.data;
     <Content />
   </article>
 
+  {d.example && (
+    <section class="example">
+      <h2>例题</h2>
+      <div class="example-row">
+        <figure>
+          <Image src={d.example} alt={`${d.name.zh} 例题`} width={400} />
+          <figcaption>例题</figcaption>
+        </figure>
+        {d.exampleAnswer && (
+          <>
+            <span class="arrow" aria-hidden="true">→</span>
+            <figure>
+              <Image src={d.exampleAnswer} alt={`${d.name.zh} 例题解答`} width={400} />
+              <figcaption>解答</figcaption>
+            </figure>
+          </>
+        )}
+      </div>
+    </section>
+  )}
+
+  {d.links.length > 0 && (
+    <p class="links">
+      {d.links.map((l) => <a class="button" href={l.url} target="_blank" rel="noopener">{l.label} ↗</a>)}
+    </p>
+  )}
+
   <h2>谜题（{puzzles.length}）</h2>
   {puzzles.length === 0 && <p class="muted">还没有收录这个题型的谜题。</p>}
   <div class="grid">
@@ -45,4 +73,10 @@ const d = genre.data;
   .info dt { color: var(--muted); }
   .info dd { margin: 0; }
   .prose { max-width: 760px; }
+  .example-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .example figure { margin: 0; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center; }
+  .example figure :global(img) { display: block; width: 260px; max-width: 100%; height: auto; }
+  .example figcaption { color: #656d76; font-size: .85rem; margin-top: 4px; }
+  .arrow { font-size: 1.5rem; color: var(--muted); }
+  .links { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>
